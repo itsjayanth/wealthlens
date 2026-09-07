@@ -9,65 +9,100 @@ This repo currently implements **Phase 1 (MVP "skateboard")**: read-only
 portfolio view + advisory recommendations with manual approve/reject. Trade
 execution and the advisor console are later phases (see PRD section 12).
 
-## Monorepo layout
+## Architecture
+
+WealthLens is a **single Next.js app** — frontend pages and the backend API
+both live in `apps/web` and deploy together as one Vercel project. There is
+no separate server to host: the API routes under `apps/web/src/app/api/*`
+run as Next.js Route Handlers (Node.js runtime), and the frontend calls them
+at same-origin `/api/...` paths.
 
 ```
 apps/
-  web/      Next.js + TypeScript + Tailwind frontend
-  api/      Express + TypeScript backend
+  web/
+    src/app/            Pages (App Router) + API route handlers (src/app/api/*)
+    src/components/      Shared UI components
+    src/lib/             Frontend API client + auth helpers
+    src/server/           Backend logic used only by the API routes:
+                           db (pg pool + migration script), lib (crypto/jwt/errors),
+                           broker (Sharekhan adapter interface + mock), engine
+                           (rule-based recommendation engine), repositories
+    db/schema.sql         Postgres schema
 packages/
-  shared/   Shared TypeScript types used by both apps
+  shared/    Shared TypeScript types used by both pages and API routes
 docs/
-  API_CONTRACT.md   Endpoint contract shared by web and api
+  API_CONTRACT.md   Endpoint contract implemented by apps/web/src/app/api
 PRD.md      Product requirements document
 ```
 
 The Sharekhan broker integration lives behind an adapter interface in
-`apps/api/src/broker/` — Phase 1 ships a mock adapter
+`apps/web/src/server/broker/` — Phase 1 ships a mock adapter
 (`SHAREKHAN_ADAPTER=mock`) that fabricates holdings/prices/history so the
 whole app works end-to-end without real credentials. Swapping in the real
 Sharekhan API/SDK later means implementing that same interface, not
 rewriting route handlers.
 
+Sharekhan API Key/Secure Key are encrypted at rest (AES-256-GCM) before
+being stored — see `apps/web/src/server/lib/crypto.ts`.
+
 ## Prerequisites
 
 - Node.js >= 18
-- Docker (for local Postgres) — or point `DATABASE_URL` at your own Postgres instance
+- A Postgres database — either local (via the bundled `docker-compose.yml`,
+  or a local install) for development, or a hosted instance (e.g.
+  [Neon](https://neon.tech) or [Supabase](https://supabase.com), both have
+  free tiers) for a Vercel deployment.
 
-## Setup
+## Local setup
+
+Next.js only loads env files from the app's own directory, so `.env.local`
+must live in `apps/web/`, not the repo root:
 
 ```bash
-cp .env.example .env
-# edit .env if needed (defaults work with the bundled docker-compose Postgres)
+cp apps/web/.env.example apps/web/.env.local
+# edit apps/web/.env.local if needed (defaults work with the bundled docker-compose Postgres)
 
-npm install          # installs all workspaces (apps/web, apps/api, packages/shared)
-npm run build:shared # compiles packages/shared once so the apps can import it
+npm install               # installs all workspaces (apps/web, packages/shared)
+npm run build:shared      # compiles packages/shared once so apps/web can import it
 
-npm run db:up                        # starts Postgres via docker compose
-npm run db:migrate --workspace apps/api   # applies apps/api/db/schema.sql
+npm run db:up                          # starts local Postgres via docker compose
+npm run db:migrate --workspace apps/web   # applies apps/web/db/schema.sql
 ```
 
 ## Running locally
 
-In two terminals:
-
 ```bash
-npm run dev:api   # starts the Express API on http://localhost:4000
-npm run dev:web   # starts the Next.js app on http://localhost:3000
+npm run dev:web   # starts Next.js on http://localhost:3000 (pages + /api/*)
 ```
 
 Open http://localhost:3000, sign up, link a (mock) Sharekhan account with
 any API Key / Secure Key / Client Code, then view the portfolio dashboard
 and recommendations feed.
 
+## Deploying to Vercel
+
+1. Create a hosted Postgres database (Neon or Supabase) and grab its
+   connection string — append `?sslmode=require` if it isn't already there.
+2. Import the repo into Vercel, with **`apps/web` as the project root
+   directory**.
+3. In the Vercel project's environment variables, set everything from
+   `apps/web/.env.example`: `DATABASE_URL` (the hosted Postgres URL from
+   step 1), `JWT_SECRET`, `CREDENTIALS_ENCRYPTION_KEY`,
+   `SHAREKHAN_API_BASE_URL`, `SHAREKHAN_ADAPTER=mock`.
+4. From your machine, run the migration once against the hosted database:
+   `DATABASE_URL=<hosted-url> npm run db:migrate --workspace apps/web`.
+5. Deploy. Frontend and API ship together in one deployment — no second
+   service to host.
+
 ## Environment variables
 
-See [`.env.example`](./.env.example) for the full list: database connection,
-JWT signing secret, the AES key used to encrypt linked broker credentials
-at rest, and the broker adapter selection (`SHAREKHAN_ADAPTER`).
+See [`apps/web/.env.example`](./apps/web/.env.example) for the full list:
+database connection, JWT signing secret, the AES key used to encrypt linked
+broker credentials at rest, and the broker adapter selection
+(`SHAREKHAN_ADAPTER`).
 
 ## Useful scripts (root `package.json`)
 
-- `npm run dev:web` / `npm run dev:api` — run each app in dev mode
-- `npm run build` — build shared package, then api, then web
+- `npm run dev:web` — run the app in dev mode (pages + API routes, one process)
+- `npm run build` — build shared package, then the app
 - `npm run db:up` / `npm run db:down` — start/stop local Postgres via Docker Compose

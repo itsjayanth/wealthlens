@@ -10,8 +10,10 @@ import type {
 } from "@wealthlens/shared";
 import { getToken } from "./auth";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+// The API now lives at /api/... in this same Next.js app (both in dev and
+// prod), so same-origin (empty base URL) is the correct default. The env var
+// remains as an optional override for pointing at an external API later.
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 export interface ApiErrorShape {
   message: string;
