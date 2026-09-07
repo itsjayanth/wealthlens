@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LinkedAccountSummary } from "@wealthlens/shared";
-import { linkAccount, ApiError } from "@/lib/api";
+import { linkAccount, listAccounts, ApiError } from "@/lib/api";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Card } from "@/components/Card";
 import { Input } from "@/components/Input";
@@ -41,6 +41,21 @@ function LinkAccountForm() {
   const [loading, setLoading] = useState(false);
   const [account, setAccount] = useState<LinkedAccountSummary | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    listAccounts()
+      .then(({ accounts }) => {
+        const active = accounts.find((a) => a.status === "active");
+        if (active && !cancelled) setAccount(active);
+      })
+      .catch(() => {
+        // No existing connection to show - leave the form as the primary action.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -70,9 +85,40 @@ function LinkAccountForm() {
             Connect your <span className="gold-text">Sharekhan</span> account
           </h1>
           <p className="mt-2 text-sm text-parchment-muted">
-            Link your account once — WealthLens reads your holdings and live prices to
-            generate advisory recommendations. We never place a trade without your approval.
+            {account
+              ? "Your Sharekhan account is connected. Re-enter your credentials below if you ever need to reconnect."
+              : "Link your account once — WealthLens reads your holdings and live prices to generate advisory recommendations. We never place a trade without your approval."}
           </p>
+
+          <AnimatePresence>
+            {account && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <Card className="mt-5 border border-emerald-soft/25 bg-emerald-soft/[0.06]">
+                  <div className="mb-3 flex items-center gap-2 text-emerald-soft">
+                    <CheckIcon />
+                    <h2 className="text-sm font-semibold">Connection successful</h2>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                    <dt className="text-parchment-muted">Broker</dt>
+                    <dd className="capitalize text-parchment">{account.broker}</dd>
+                    <dt className="text-parchment-muted">Client code</dt>
+                    <dd className="text-parchment">{account.clientCode}</dd>
+                    <dt className="text-parchment-muted">Status</dt>
+                    <dd className="capitalize text-parchment">{account.status}</dd>
+                    <dt className="text-parchment-muted">Linked at</dt>
+                    <dd className="text-parchment">
+                      {new Date(account.linkedAt).toLocaleString()}
+                    </dd>
+                  </dl>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="mt-5 flex flex-wrap gap-2.5 text-xs text-parchment-muted">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
@@ -120,41 +166,11 @@ function LinkAccountForm() {
               {error && <p className="text-sm text-rose-soft">{error}</p>}
 
               <Button type="submit" disabled={loading} className="mt-2 w-full">
-                {loading ? "Linking..." : "Link account"}
+                {loading ? "Linking..." : account ? "Reconnect account" : "Link account"}
               </Button>
             </form>
           </Card>
         </motion.div>
-
-        <AnimatePresence>
-          {account && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <Card className="mt-6 border border-emerald-soft/25 bg-emerald-soft/[0.06]">
-                <div className="mb-3 flex items-center gap-2 text-emerald-soft">
-                  <CheckIcon />
-                  <h2 className="text-sm font-semibold">Account linked</h2>
-                </div>
-                <dl className="grid grid-cols-2 gap-y-2 text-sm">
-                  <dt className="text-parchment-muted">Broker</dt>
-                  <dd className="capitalize text-parchment">{account.broker}</dd>
-                  <dt className="text-parchment-muted">Client code</dt>
-                  <dd className="text-parchment">{account.clientCode}</dd>
-                  <dt className="text-parchment-muted">Status</dt>
-                  <dd className="capitalize text-parchment">{account.status}</dd>
-                  <dt className="text-parchment-muted">Linked at</dt>
-                  <dd className="text-parchment">
-                    {new Date(account.linkedAt).toLocaleString()}
-                  </dd>
-                </dl>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );
