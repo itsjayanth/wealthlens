@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import type { Recommendation } from "@wealthlens/shared";
 import {
   approveRecommendation,
@@ -42,15 +43,15 @@ function RecommendationCard({
     <Card className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-base font-semibold text-slate-900">{rec.ticker}</span>
+          <span className="text-base font-semibold text-parchment">{rec.ticker}</span>
           <ActionBadge action={rec.action} />
         </div>
         <StatusBadge status={rec.status} />
       </div>
 
-      <p className="text-sm text-slate-600">{rec.reason}</p>
+      <p className="text-sm text-parchment-muted">{rec.reason}</p>
 
-      <div className="flex items-center justify-between text-xs text-slate-400">
+      <div className="flex items-center justify-between text-xs text-parchment-dim">
         <span>Confidence: {Math.round(rec.confidence * 100)}%</span>
         <span>{formatTimestamp(rec.timestamp)}</span>
       </div>
@@ -138,43 +139,55 @@ function RecommendationsContent() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Recommendations</h1>
-          <p className="text-sm text-slate-500">
-            Advisory suggestions generated from your portfolio. Approving does not place a
-            live order in Phase 1 — you&apos;ll execute the trade manually on Sharekhan.
-          </p>
+    <div className="shell py-8 sm:py-10">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="font-display text-2xl text-parchment">Recommendations</h1>
+            <p className="mt-1 text-sm text-parchment-muted">
+              Advisory suggestions generated from your portfolio. Approving does not place a
+              live order in Phase 1 — you&apos;ll execute the trade manually on Sharekhan.
+            </p>
+          </div>
+          <Button onClick={handleGenerate} disabled={generating}>
+            {generating ? "Generating..." : "Generate recommendations"}
+          </Button>
         </div>
-        <Button onClick={handleGenerate} disabled={generating}>
-          {generating ? "Generating..." : "Generate recommendations"}
-        </Button>
+
+        {error && <p className="text-sm text-rose-soft">{error}</p>}
+
+        {loading ? (
+          <p className="text-sm text-parchment-dim">Loading recommendations...</p>
+        ) : recs.length === 0 ? (
+          <Card>
+            <p className="text-sm text-parchment-dim">
+              No recommendations yet. Click &quot;Generate recommendations&quot; to run the engine.
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {recs.map((rec, i) => (
+              <motion.div
+                key={rec.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.4,
+                  delay: Math.min(i, 8) * 0.05,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                <RecommendationCard
+                  rec={rec}
+                  busy={busyIds.has(rec.id)}
+                  onApprove={(id) => handleAction(id, "approve")}
+                  onReject={(id) => handleAction(id, "reject")}
+                />
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
-
-      {error && <p className="text-sm text-rose-600">{error}</p>}
-
-      {loading ? (
-        <p className="text-sm text-slate-400">Loading recommendations...</p>
-      ) : recs.length === 0 ? (
-        <Card>
-          <p className="text-sm text-slate-400">
-            No recommendations yet. Click &quot;Generate recommendations&quot; to run the engine.
-          </p>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {recs.map((rec) => (
-            <RecommendationCard
-              key={rec.id}
-              rec={rec}
-              busy={busyIds.has(rec.id)}
-              onApprove={(id) => handleAction(id, "approve")}
-              onReject={(id) => handleAction(id, "reject")}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

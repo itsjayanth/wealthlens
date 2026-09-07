@@ -1,15 +1,15 @@
 import type { RecommendationAction, RecommendationStatus } from "@wealthlens/shared";
 
 const actionClasses: Record<RecommendationAction, string> = {
-  BUY: "bg-emerald-100 text-emerald-800",
-  SELL: "bg-rose-100 text-rose-800",
-  HOLD: "bg-slate-200 text-slate-700",
+  BUY: "bg-emerald-soft/15 text-emerald-soft border border-emerald-soft/25",
+  SELL: "bg-rose-soft/15 text-rose-soft border border-rose-soft/25",
+  HOLD: "bg-white/5 text-parchment-muted border border-white/10",
 };
 
 export function ActionBadge({ action }: { action: RecommendationAction }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${actionClasses[action]}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wide ${actionClasses[action]}`}
     >
       {action}
     </span>
@@ -17,15 +17,15 @@ export function ActionBadge({ action }: { action: RecommendationAction }) {
 }
 
 const statusClasses: Record<RecommendationStatus, string> = {
-  pending: "bg-amber-100 text-amber-800",
-  approved: "bg-emerald-100 text-emerald-800",
-  rejected: "bg-rose-100 text-rose-800",
+  pending: "bg-gold/15 text-gold-light border border-gold/25",
+  approved: "bg-emerald-soft/15 text-emerald-soft border border-emerald-soft/25",
+  rejected: "bg-rose-soft/15 text-rose-soft border border-rose-soft/25",
 };
 
 export function StatusBadge({ status }: { status: RecommendationStatus }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${statusClasses[status]}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize tracking-wide ${statusClasses[status]}`}
     >
       {status}
     </span>
