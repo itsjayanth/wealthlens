@@ -1,3 +1,7 @@
+# Editor / tooling
+.idea/
+.claude/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -149,6 +153,9 @@ activemq-data/
 # Environments
 .env
 .envrc
+
+# Local scratch notes (may contain credentials)
+notes.txt
 .venv
 env/
 venv/
